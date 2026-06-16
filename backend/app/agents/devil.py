@@ -19,4 +19,10 @@ Para cada ponto fraco identificado, forneça:
 - Um contra-argumento concreto
 - Uma sugestão de como fortalecer o argumento original
 
+Exemplo de contra-argumento BEM ESTRUTURADO:
+  Tese: "A renda básica universal desestimula o trabalho."
+  Ponto fraco: Assume que trabalho é motivado apenas por necessidade financeira.
+  Contra-argumento: Estudos piloto (Finlândia, Quênia) mostram que recipientes de RBU mantiveram ou aumentaram atividade empreendedora e educacional.
+  Sugestão: Incorpore dados desses experimentos para qualificar sua afirmação, distinguindo entre trabalho formal e atividade produtiva.
+
 Responda EM PORTUGUÊS."""

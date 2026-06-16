@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.forum import Forum
+from app.models.user import User
 from app.schemas.forum import ForumCreate, ForumResponse
 
 router = APIRouter()
@@ -27,7 +29,11 @@ def list_forums(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ForumResponse, status_code=201)
-def create_forum(payload: ForumCreate, db: Session = Depends(get_db)):
+def create_forum(
+    payload: ForumCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     forum = Forum(
         id=uuid.uuid4(),
         title=payload.title,

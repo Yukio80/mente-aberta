@@ -1,5 +1,25 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("ma_token");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return parsed.token || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  if (token) return { Authorization: `Bearer ${token}` };
+  return {};
+}
+
 export type Thought = {
   id: string;
   title: string;
@@ -70,11 +90,25 @@ export type Synthesis = {
   created_at: string;
 };
 
+export type AnalysisStatus = {
+  completed_types: string[];
+  pending_types: string[];
+  total: number;
+  completed: number;
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     ...options,
   });
+  if (res.status === 401) {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("ma_token");
+      window.location.href = "/auth/login";
+    }
+    throw new Error("Unauthorized");
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API error ${res.status}: ${text}`);
@@ -93,6 +127,7 @@ export const api = {
   analyzeThought: (id: string) =>
     request<Analysis[]>(`/api/analysis/${id}/analyze`, { method: "POST" }),
   getAnalysis: (id: string) => request<Analysis[]>(`/api/analysis/${id}`),
+  getAnalysisStatus: (id: string) => request<AnalysisStatus>(`/api/analysis/${id}/status`),
   addArgument: (thoughtId: string, data: { type: string; content: string; score?: number }) =>
     request<Argument>(`/api/thoughts/${thoughtId}/arguments`, {
       method: "POST",

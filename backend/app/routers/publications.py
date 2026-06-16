@@ -1,3 +1,4 @@
+import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -5,8 +6,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.forum import Forum, Publication
 from app.models.thought import Thought
+from app.models.user import User
 from app.schemas.forum import PublicationResponse
 
 router = APIRouter()
@@ -44,8 +47,16 @@ def list_publications(forum_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=PublicationResponse, status_code=201)
-def publish_thought(payload: PublishRequest, db: Session = Depends(get_db)):
-    thought = db.query(Thought).filter(Thought.id == payload.thought_id).first()
+def publish_thought(
+    payload: PublishRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    thought = (
+        db.query(Thought)
+        .filter(Thought.id == payload.thought_id, Thought.user_id == current_user.id)
+        .first()
+    )
     if not thought:
         raise HTTPException(status_code=404, detail="Thought not found")
 
@@ -84,9 +95,22 @@ def publish_thought(payload: PublishRequest, db: Session = Depends(get_db)):
 
 
 @router.delete("/{publication_id}", status_code=204)
-def unpublish(publication_id: UUID, db: Session = Depends(get_db)):
+def unpublish(
+    publication_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     pub = db.query(Publication).filter(Publication.id == publication_id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
+
+    thought = (
+        db.query(Thought)
+        .filter(Thought.id == pub.thought_id, Thought.user_id == current_user.id)
+        .first()
+    )
+    if not thought:
+        raise HTTPException(status_code=403, detail="Not authorized to unpublish this thought")
+
     db.delete(pub)
     db.commit()

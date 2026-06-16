@@ -19,6 +19,14 @@ Para cada viés identificado, informe:
 - O nome do viés
 - O trecho específico onde ele aparece
 - Uma explicação de como ele se manifesta
-- Uma sugestão para mitigá-lo
+- Uma sugestão para mitigá-la
+
+Exemplo de detecção BOA:
+  Tese: "O Brasil nunca vai dar certo porque sempre foi assim."
+  → Viés de generalização apressada no trecho "nunca" e "sempre": usar termos absolutos sem base em dados longitudinais. Mitigação: buscar séries históricas que mostrem mudanças incrementais ao longo do tempo.
+
+Exemplo de detecção SUPERFICIAL:
+  "A pessoa está sendo tendenciosa" sem apontar o trecho ou o tipo de viés.
+  Isso NÃO é aceitável. Sempre aponte o trecho exato e o viés específico.
 
 Responda EM PORTUGUÊS."""

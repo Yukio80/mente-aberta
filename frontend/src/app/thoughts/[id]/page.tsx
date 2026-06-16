@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, Argument, Forum, Thought } from "@/lib/api";
 
@@ -10,8 +10,24 @@ const agentMeta: Record<string, { name: string; icon: string; color: string }> =
   bias: { name: "Detector de Vieses", icon: "", color: "border-l-amber-500 bg-amber-50" },
 };
 
-function AgentPanel({ type, content }: { type: string; content: string }) {
+const allAgentTypes = ["socratic", "devil", "bias"];
+
+function AgentPanel({ type, content, loading }: { type: string; content: string; loading?: boolean }) {
   const meta = agentMeta[type] || { name: type, icon: "", color: "border-l-zinc-500 bg-zinc-50" };
+
+  if (loading) {
+    return (
+      <div className={`rounded-lg border-l-4 p-4 ${meta.color} animate-pulse`}>
+        <h3 className="font-semibold">
+          {meta.icon} {meta.name}
+        </h3>
+        <div className="mt-2 flex items-center gap-2 text-sm text-zinc-500">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Analisando...
+        </div>
+      </div>
+    );
+  }
 
   if (!content) {
     return (
@@ -37,6 +53,164 @@ function AgentPanel({ type, content }: { type: string; content: string }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function AgentLoadingPanel({ type, status }: { type: string; status: "pending" | "running" | "done" }) {
+  const meta = agentMeta[type] || { name: type, icon: "", color: "border-l-zinc-500 bg-zinc-50" };
+
+  if (status === "done") return null;
+
+  return (
+    <div className={`rounded-lg border-l-4 p-4 opacity-60 ${meta.color}`}>
+      <h3 className="font-semibold">
+        {meta.icon} {meta.name}
+      </h3>
+      <div className="mt-2 flex items-center gap-2 text-sm text-zinc-500">
+        {status === "running" ? (
+          <>
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Analisando...
+          </>
+        ) : (
+          "Na fila..."
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnalysisSection({
+  thought,
+  onRefresh,
+}: {
+  thought: Thought;
+  onRefresh: () => void;
+}) {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<Record<string, "pending" | "running" | "done">>({});
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const hasExisting = thought.analyses.length > 0;
+  const existingTypes = new Set(thought.analyses.map((a) => a.agent_type));
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const startPolling = useCallback((thoughtId: string) => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await api.getAnalysisStatus(thoughtId);
+        const newStatus: Record<string, "pending" | "running" | "done"> = {};
+
+        for (const type of allAgentTypes) {
+          if (status.completed_types.includes(type)) {
+            newStatus[type] = "done";
+          } else if (status.pending_types.includes(type)) {
+            newStatus[type] = "pending";
+          }
+        }
+
+        setAgentStatus(newStatus);
+
+        if (status.completed === status.total) {
+          stopPolling();
+          setAnalyzing(false);
+          onRefresh();
+        }
+      } catch {
+        stopPolling();
+        setAnalyzing(false);
+      }
+    }, 1500);
+  }, [stopPolling, onRefresh]);
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    const initial: Record<string, "pending" | "running" | "done"> = {};
+    for (const type of allAgentTypes) {
+      initial[type] = "pending";
+    }
+    setAgentStatus(initial);
+
+    try {
+      await api.analyzeThought(thought.id);
+      const running: Record<string, "pending" | "running" | "done"> = {};
+      for (const type of allAgentTypes) {
+        running[type] = "running";
+      }
+      setAgentStatus(running);
+      startPolling(thought.id);
+    } catch (err) {
+      console.error(err);
+      setAnalyzing(false);
+      setAgentStatus({});
+      alert("Erro ao analisar. Verifique a chave da API.");
+    }
+  };
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  if (!hasExisting && !analyzing) {
+    return (
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Análises dos Agentes</h2>
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+          >
+            {analyzing ? "Analisando..." : "Analisar com IA"}
+          </button>
+        </div>
+        {analyzing && (
+          <div className="space-y-4">
+            {allAgentTypes.map((type) => (
+              <AgentLoadingPanel key={type} type={type} status={agentStatus[type] || "pending"} />
+            ))}
+          </div>
+        )}
+        <p className="text-sm text-zinc-400">
+          Clique em "Analisar com IA" para obter análises dos 3 agentes.
+        </p>
+      </section>
+    );
+  }
+
+  const analyzingAgentTypes = Object.keys(agentStatus).filter(
+    (t) => agentStatus[t] === "running" || agentStatus[t] === "pending"
+  );
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Análises dos Agentes</h2>
+        {!hasExisting && analyzing && (
+          <button disabled className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white opacity-50">
+            Analisando...
+          </button>
+        )}
+      </div>
+
+      {analyzing && analyzingAgentTypes.length > 0 && (
+        <div className="space-y-4">
+          {analyzingAgentTypes.map((type) => (
+            <AgentLoadingPanel key={type} type={type} status={agentStatus[type] || "pending"} />
+          ))}
+        </div>
+      )}
+
+      {thought.analyses.map((a) => (
+        <AgentPanel key={a.id} type={a.agent_type} content={a.content} />
+      ))}
+    </section>
   );
 }
 
@@ -170,7 +344,6 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
   const router = useRouter();
   const [thought, setThought] = useState<Thought | null>(null);
   const [loading, setLoading] = useState(true);
-  const [analyzing, setAnalyzing] = useState(false);
   const [publishForums, setPublishForums] = useState<Forum[]>([]);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [selectedForumId, setSelectedForumId] = useState("");
@@ -190,19 +363,6 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
   useEffect(() => {
     loadThought();
   }, [loadThought]);
-
-  const handleAnalyze = async () => {
-    setAnalyzing(true);
-    try {
-      await api.analyzeThought(id);
-      await loadThought();
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao analisar. Verifique a chave da API.");
-    } finally {
-      setAnalyzing(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!confirm("Tem certeza?")) return;
@@ -269,13 +429,6 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleAnalyze}
-            disabled={analyzing}
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-          >
-            {analyzing ? "Analisando..." : "Analisar com IA"}
-          </button>
           <button
             onClick={handleDelete}
             className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
@@ -373,14 +526,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
           </section>
         )}
 
-        {thought.analyses.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Análises dos Agentes</h2>
-            {thought.analyses.map((a) => (
-              <AgentPanel key={a.id} type={a.agent_type} content={a.content} />
-            ))}
-          </section>
-        )}
+        <AnalysisSection thought={thought} onRefresh={loadThought} />
 
         <section className="rounded-xl border border-zinc-200 bg-white p-6">
           <ArgumentList

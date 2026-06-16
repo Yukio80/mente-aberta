@@ -47,6 +47,7 @@ class AnalysisResponse(BaseModel):
 
 class ThoughtResponse(BaseModel):
     id: UUID
+    user_id: UUID
     title: str
     claim: str
     evidence: str
@@ -63,6 +64,7 @@ class ThoughtResponse(BaseModel):
 
 class ThoughtListItem(BaseModel):
     id: UUID
+    user_id: UUID
     title: str
     claim: str
     status: str

@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
+from app.models import forum, thought, user
 from app.routers import analysis as analysis_router
+from app.routers import auth as auth_router
 from app.routers import forums as forums_router
 from app.routers import publications as publications_router
 from app.routers import synthesis as synthesis_router
@@ -20,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router, prefix="/api/auth", tags=["auth"])
 app.include_router(thoughts_router.router, prefix="/api/thoughts", tags=["thoughts"])
 app.include_router(analysis_router.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(forums_router.router, prefix="/api/forums", tags=["forums"])

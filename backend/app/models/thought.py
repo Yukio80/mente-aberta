@@ -11,6 +11,7 @@ class Thought(Base):
     __tablename__ = "thoughts"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid, ForeignKey("users.id"), nullable=False)
     title = Column(String(255), nullable=False)
     claim = Column(Text, nullable=False)
     evidence = Column(Text, default="")
@@ -20,6 +21,7 @@ class Thought(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    user = relationship("User", back_populates="thoughts")
     analyses = relationship("Analysis", back_populates="thought", cascade="all, delete-orphan")
     arguments = relationship("Argument", back_populates="thought", cascade="all, delete-orphan")
 
