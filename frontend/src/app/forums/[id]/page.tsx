@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, Forum, Publication, Synthesis } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 function PublicationCard({ pub }: { pub: Publication }) {
   const router = useRouter();
@@ -17,182 +18,6 @@ function PublicationCard({ pub }: { pub: Publication }) {
         {new Date(pub.created_at).toLocaleString("pt-BR")}
       </p>
     </button>
-  );
-}
-
-function SynthesisPanel({
-  synthesis,
-  forumId,
-  onRefresh,
-}: {
-  synthesis: Synthesis | null;
-  forumId: string;
-  onRefresh: () => void;
-}) {
-  const [synthesizing, setSynthesizing] = useState(false);
-
-  const handleSynthesize = async () => {
-    setSynthesizing(true);
-    try {
-      await api.synthesize(forumId);
-      onRefresh();
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao gerar síntese. Verifique a chave da API.");
-    } finally {
-      setSynthesizing(false);
-    }
-  };
-
-  let data: Record<string, any> | null = null;
-  if (synthesis) {
-    try {
-      const cleaned = synthesis.content.replace(/```json|```/g, "").trim();
-      data = JSON.parse(cleaned);
-    } catch {
-      data = null;
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Síntese do Debate</h2>
-        <button
-          onClick={handleSynthesize}
-          disabled={synthesizing}
-          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
-        >
-          {synthesizing ? "Sintetizando..." : "Gerar Síntese com IA"}
-        </button>
-      </div>
-
-      {!synthesis && (
-        <p className="text-sm text-zinc-400">
-          Nenhuma síntese ainda. Clique em "Gerar Síntese" para analisar todas as publicações.
-        </p>
-      )}
-
-      {synthesis && !data && (
-        <div className="rounded-lg border border-zinc-200 bg-white p-4">
-          <p className="text-sm text-zinc-700 whitespace-pre-wrap">{synthesis.content}</p>
-        </div>
-      )}
-
-      {data && (
-        <div className="space-y-4">
-          {data.nivel_de_consenso_geral !== undefined && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-zinc-700">Nível de Consenso Geral</span>
-                <span className="text-2xl font-bold text-violet-700">
-                  {((data.nivel_de_consenso_geral as number) * 100).toFixed(0)}%
-                </span>
-              </div>
-              <div className="mt-2 h-2 rounded-full bg-zinc-100">
-                <div
-                  className="h-2 rounded-full bg-violet-600 transition-all"
-                  style={{ width: `${((data.nivel_de_consenso_geral as number) * 100).toFixed(0)}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {data.consenso && (data.consenso as string[]).length > 0 && (
-            <SectionCard title="✅ Pontos de Consenso" color="emerald">
-              <ul className="space-y-2">
-                {(data.consenso as string[]).map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-          )}
-
-          {data.dissenso && (data.dissenso as string[]).length > 0 && (
-            <SectionCard title=" Pontos de Dissenso" color="red">
-              <ul className="space-y-2">
-                {(data.dissenso as string[]).map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-          )}
-
-          {data.pontos_de_maior_tensao && (data.pontos_de_maior_tensao as string[]).length > 0 && (
-            <SectionCard title="⚡ Pontos de Maior Tensão" color="amber">
-              <ul className="space-y-2">
-                {(data.pontos_de_maior_tensao as string[]).map((item, i) => (
-                  <li key={i} className="text-sm text-zinc-700">• {item}</li>
-                ))}
-              </ul>
-            </SectionCard>
-          )}
-
-          {data.vieses_coletivos && (data.vieses_coletivos as any[]).length > 0 && (
-            <SectionCard title=" Vieses Coletivos Identificados" color="rose">
-              <div className="space-y-3">
-                {(data.vieses_coletivos as any[]).map((bias: any, i) => (
-                  <div key={i} className="rounded-lg border border-rose-100 bg-rose-50 p-3">
-                    <h4 className="text-sm font-semibold text-rose-800">{bias.vies as string}</h4>
-                    <p className="mt-1 text-sm text-rose-700">{bias.descricao as string}</p>
-                    {bias.publicacoes_afetadas && (
-                      <p className="mt-1 text-xs text-rose-500">
-                        Publicações: {(bias.publicacoes_afetadas as string[]).join(", ")}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-          )}
-
-          {data.assuncoes_ocultas && (data.assuncoes_ocultas as string[]).length > 0 && (
-            <SectionCard title="🔍 Assunções Ocultas" color="purple">
-              <ul className="space-y-2">
-                {(data.assuncoes_ocultas as string[]).map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-          )}
-
-          {data.insights_emergentes && (data.insights_emergentes as string[]).length > 0 && (
-            <SectionCard title="💡 Insights Emergentes" color="blue">
-              <ul className="space-y-2">
-                {(data.insights_emergentes as string[]).map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-          )}
-
-          {data.lacunas && (data.lacunas as string[]).length > 0 && (
-            <SectionCard title=" Lacunas no Debate" color="slate">
-              <ul className="space-y-2">
-                {(data.lacunas as string[]).map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-500" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-          )}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -225,13 +50,193 @@ function SectionCard({
   );
 }
 
+function SynthesisPanel({
+  synthesis,
+  forumId,
+  onRefresh,
+}: {
+  synthesis: Synthesis | null;
+  forumId: string;
+  onRefresh: () => void;
+}) {
+  const { toast } = useToast();
+  const [synthesizing, setSynthesizing] = useState(false);
+
+  const handleSynthesize = async () => {
+    setSynthesizing(true);
+    try {
+      await api.synthesize(forumId);
+      toast("Síntese gerada com sucesso!", "success");
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+      toast("Erro ao gerar síntese. Verifique a chave da API.", "error");
+    } finally {
+      setSynthesizing(false);
+    }
+  };
+
+  let data: Record<string, unknown> | null = null;
+  if (synthesis) {
+    try {
+      const cleaned = synthesis.content.replace(/```json|```/g, "").trim();
+      data = JSON.parse(cleaned);
+    } catch {
+      data = null;
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Síntese do Debate</h2>
+        <button
+          onClick={handleSynthesize}
+          disabled={synthesizing}
+          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+        >
+          {synthesizing ? "Sintetizando..." : "Gerar Síntese com IA"}
+        </button>
+      </div>
+
+      {!synthesis && (
+        <p className="text-sm text-zinc-400">
+          Nenhuma síntese ainda. Clique em "Gerar Síntese" para analisar todas as publicações.
+        </p>
+      )}
+
+      {synthesis && !data && (
+        <div className="rounded-lg border border-zinc-200 bg-white p-4">
+          <p className="whitespace-pre-wrap text-sm text-zinc-700">{synthesis.content}</p>
+        </div>
+      )}
+
+      {data && (
+        <div className="space-y-4">
+          {typeof data.nivel_de_consenso_geral === "number" && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-zinc-700">Nível de Consenso Geral</span>
+                <span className="text-2xl font-bold text-violet-700">
+                  {(data.nivel_de_consenso_geral * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-zinc-100">
+                <div
+                  className="h-2 rounded-full bg-violet-600 transition-all"
+                  style={{ width: `${(data.nivel_de_consenso_geral * 100).toFixed(0)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {Array.isArray(data.consenso) && data.consenso.length > 0 && (
+            <SectionCard title="✅ Pontos de Consenso" color="emerald">
+              <ul className="space-y-2">
+                {(data.consenso as string[]).map((item: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+
+          {Array.isArray(data.dissenso) && data.dissenso.length > 0 && (
+            <SectionCard title=" Pontos de Dissenso" color="red">
+              <ul className="space-y-2">
+                {(data.dissenso as string[]).map((item: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+
+          {Array.isArray(data.pontos_de_maior_tensao) && data.pontos_de_maior_tensao.length > 0 && (
+            <SectionCard title="⚡ Pontos de Maior Tensão" color="amber">
+              <ul className="space-y-2">
+                {(data.pontos_de_maior_tensao as string[]).map((item: string, i: number) => (
+                  <li key={i} className="text-sm text-zinc-700">• {item}</li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+
+          {Array.isArray(data.vieses_coletivos) && data.vieses_coletivos.length > 0 && (
+            <SectionCard title=" Vieses Coletivos Identificados" color="rose">
+              <div className="space-y-3">
+                {(data.vieses_coletivos as Array<{ vies: string; descricao: string; publicacoes_afetadas?: string[] }>).map((bias, i) => (
+                  <div key={i} className="rounded-lg border border-rose-100 bg-rose-50 p-3">
+                    <h4 className="text-sm font-semibold text-rose-800">{bias.vies}</h4>
+                    <p className="mt-1 text-sm text-rose-700">{bias.descricao}</p>
+                    {bias.publicacoes_afetadas && (
+                      <p className="mt-1 text-xs text-rose-500">
+                        Publicações: {bias.publicacoes_afetadas.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {Array.isArray(data.assuncoes_ocultas) && data.assuncoes_ocultas.length > 0 && (
+            <SectionCard title="🔍 Assunções Ocultas" color="purple">
+              <ul className="space-y-2">
+                {(data.assuncoes_ocultas as string[]).map((item: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+
+          {Array.isArray(data.insights_emergentes) && data.insights_emergentes.length > 0 && (
+            <SectionCard title="💡 Insights Emergentes" color="blue">
+              <ul className="space-y-2">
+                {(data.insights_emergentes as string[]).map((item: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+
+          {Array.isArray(data.lacunas) && data.lacunas.length > 0 && (
+            <SectionCard title=" Lacunas no Debate" color="slate">
+              <ul className="space-y-2">
+                {(data.lacunas as string[]).map((item: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ForumPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { toast } = useToast();
   const [forum, setForum] = useState<Forum | null>(null);
   const [publications, setPublications] = useState<Publication[]>([]);
   const [syntheses, setSyntheses] = useState<Synthesis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [availableThoughts, setAvailableThoughts] = useState<{ id: string; title: string }[]>([]);
   const [showPublish, setShowPublish] = useState(false);
   const [selectedThought, setSelectedThought] = useState("");
@@ -247,8 +252,10 @@ export default function ForumPage({ params }: { params: Promise<{ id: string }> 
       setForum(f);
       setPublications(pubs);
       setSyntheses(syns);
+      setError("");
     } catch (err) {
       console.error(err);
+      setError("Não foi possível carregar o fórum.");
     } finally {
       setLoading(false);
     }
@@ -264,10 +271,11 @@ export default function ForumPage({ params }: { params: Promise<{ id: string }> 
       await api.publishThought(selectedThought, id);
       setShowPublish(false);
       setSelectedThought("");
+      toast("Pensamento publicado no fórum!", "success");
       await load();
     } catch (err) {
       console.error(err);
-      alert("Erro ao publicar. Talvez já esteja publicado neste fórum.");
+      toast("Erro ao publicar. Talvez já esteja publicado neste fórum.", "error");
     } finally {
       setPublishing(false);
     }
@@ -280,6 +288,7 @@ export default function ForumPage({ params }: { params: Promise<{ id: string }> 
       setShowPublish(true);
     } catch (err) {
       console.error(err);
+      toast("Erro ao carregar pensamentos.", "error");
     }
   };
 
@@ -291,10 +300,11 @@ export default function ForumPage({ params }: { params: Promise<{ id: string }> 
     );
   }
 
-  if (!forum) {
+  if (error || !forum) {
     return (
       <div className="mx-auto max-w-4xl px-6 py-20 text-center">
         <h2 className="text-xl font-semibold">Fórum não encontrado</h2>
+        <p className="mt-1 text-sm text-zinc-500">{error}</p>
         <button onClick={() => router.push("/forums")} className="mt-4 text-violet-600 hover:underline">
           Ver todos os fóruns
         </button>

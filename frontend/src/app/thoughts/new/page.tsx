@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 export default function NewThoughtPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [form, setForm] = useState({
     title: "",
     claim: "",
@@ -21,10 +23,11 @@ export default function NewThoughtPage() {
     try {
       const thought = await api.createThought(form);
       await api.analyzeThought(thought.id);
+      toast("Pensamento criado e analisado com sucesso!", "success");
       router.push(`/thoughts/${thought.id}`);
     } catch (err) {
       console.error(err);
-      alert("Erro ao criar pensamento. Verifique se o backend está rodando.");
+      toast("Erro ao criar pensamento. Verifique se o backend está rodando.", "error");
     } finally {
       setSaving(false);
     }

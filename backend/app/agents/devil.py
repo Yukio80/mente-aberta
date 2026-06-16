@@ -3,6 +3,7 @@ from app.agents.base import BaseAgent
 
 class DevilAdvocateAgent(BaseAgent):
     name = "devil"
+    max_tokens = 2000
     system_prompt = """Você é o Advogado do Diabo, especialista em desafiar ideias para fortalecê-las.
 
 Sua função é:

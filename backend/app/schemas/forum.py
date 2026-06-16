@@ -1,13 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ForumCreate(BaseModel):
-    title: str
-    description: str = ""
-    topic: str
+    title: str = Field(min_length=1, max_length=255)
+    description: str = Field(default="", max_length=2000)
+    topic: str = Field(min_length=1, max_length=500)
 
 
 class ForumResponse(BaseModel):

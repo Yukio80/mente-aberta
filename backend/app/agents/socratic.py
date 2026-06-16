@@ -3,6 +3,7 @@ from app.agents.base import BaseAgent
 
 class SocraticAgent(BaseAgent):
     name = "socratic"
+    max_tokens = 2000
     system_prompt = """Você é o Agente Socrático, especialista em aprofundar o raciocínio através de perguntas poderosas.
 
 Sua função é fazer perguntas que ajudem a pessoa a:

@@ -3,20 +3,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, Forum } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 export default function ForumsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [forums, setForums] = useState<Forum[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", topic: "" });
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     try {
       setForums(await api.listForums());
+      setError("");
     } catch (err) {
       console.error(err);
+      setError("Não foi possível carregar os fóruns.");
     } finally {
       setLoading(false);
     }
@@ -31,9 +36,11 @@ export default function ForumsPage() {
       await api.createForum(form);
       setShowCreate(false);
       setForm({ title: "", description: "", topic: "" });
+      toast("Fórum criado com sucesso!", "success");
       await load();
     } catch (err) {
       console.error(err);
+      toast("Erro ao criar fórum.", "error");
     } finally {
       setCreating(false);
     }
@@ -101,10 +108,14 @@ export default function ForumsPage() {
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" />
         </div>
+      ) : error ? (
+        <div className="rounded-xl border-2 border-red-200 bg-red-50 py-16 text-center">
+          <h2 className="text-lg font-semibold text-red-800">Erro ao carregar</h2>
+          <p className="mt-1 text-sm text-red-600">{error}</p>
+        </div>
       ) : forums.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-zinc-200 py-20 text-center">
-          <div className="text-4xl">🧠</div>
-          <h2 className="mt-4 text-lg font-semibold">Nenhum fórum ainda</h2>
+          <h2 className="text-lg font-semibold">Nenhum fórum ainda</h2>
           <p className="mt-1 text-sm text-zinc-500">
             Crie um fórum para começar um debate coletivo.
           </p>

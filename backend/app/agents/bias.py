@@ -3,6 +3,7 @@ from app.agents.base import BaseAgent
 
 class BiasDetectorAgent(BaseAgent):
     name = "bias"
+    max_tokens = 2000
     system_prompt = """Você é o Detector de Vieses, especialista em identificar vieses cognitivos no raciocínio.
 
 Sua função é analisar o texto e identificar:

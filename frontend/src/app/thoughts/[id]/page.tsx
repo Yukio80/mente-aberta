@@ -3,6 +3,8 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, Argument, Forum, Thought } from "@/lib/api";
+import { useToast } from "@/components/Toast";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 const agentMeta: Record<string, { name: string; icon: string; color: string }> = {
   socratic: { name: "Agente Socrático", icon: "?", color: "border-l-blue-500 bg-blue-50" },
@@ -17,7 +19,7 @@ function AgentPanel({ type, content, loading }: { type: string; content: string;
 
   if (loading) {
     return (
-      <div className={`rounded-lg border-l-4 p-4 ${meta.color} animate-pulse`}>
+      <div className={`animate-pulse rounded-lg border-l-4 p-4 ${meta.color}`}>
         <h3 className="font-semibold">
           {meta.icon} {meta.name}
         </h3>
@@ -40,17 +42,13 @@ function AgentPanel({ type, content, loading }: { type: string; content: string;
     );
   }
 
-  const lines = content.split("\n").filter(Boolean);
-
   return (
     <div className={`rounded-lg border-l-4 p-4 ${meta.color}`}>
       <h3 className="font-semibold">
         {meta.icon} {meta.name}
       </h3>
-      <div className="mt-3 space-y-2 text-sm leading-relaxed text-zinc-700">
-        {lines.map((line, i) => (
-          <p key={i}>{line}</p>
-        ))}
+      <div className="mt-3 text-sm leading-relaxed text-zinc-700 whitespace-pre-wrap break-words">
+        {content}
       </div>
     </div>
   );
@@ -92,7 +90,6 @@ function AnalysisSection({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const hasExisting = thought.analyses.length > 0;
-  const existingTypes = new Set(thought.analyses.map((a) => a.agent_type));
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -106,17 +103,10 @@ function AnalysisSection({
       try {
         const status = await api.getAnalysisStatus(thoughtId);
         const newStatus: Record<string, "pending" | "running" | "done"> = {};
-
         for (const type of allAgentTypes) {
-          if (status.completed_types.includes(type)) {
-            newStatus[type] = "done";
-          } else if (status.pending_types.includes(type)) {
-            newStatus[type] = "pending";
-          }
+          newStatus[type] = status.completed_types.includes(type) ? "done" : "pending";
         }
-
         setAgentStatus(newStatus);
-
         if (status.completed === status.total) {
           stopPolling();
           setAnalyzing(false);
@@ -132,30 +122,23 @@ function AnalysisSection({
   const handleAnalyze = async () => {
     setAnalyzing(true);
     const initial: Record<string, "pending" | "running" | "done"> = {};
-    for (const type of allAgentTypes) {
-      initial[type] = "pending";
-    }
+    for (const type of allAgentTypes) initial[type] = "pending";
     setAgentStatus(initial);
 
     try {
       await api.analyzeThought(thought.id);
       const running: Record<string, "pending" | "running" | "done"> = {};
-      for (const type of allAgentTypes) {
-        running[type] = "running";
-      }
+      for (const type of allAgentTypes) running[type] = "running";
       setAgentStatus(running);
       startPolling(thought.id);
     } catch (err) {
       console.error(err);
       setAnalyzing(false);
       setAgentStatus({});
-      alert("Erro ao analisar. Verifique a chave da API.");
     }
   };
 
-  useEffect(() => {
-    return () => stopPolling();
-  }, [stopPolling]);
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   if (!hasExisting && !analyzing) {
     return (
@@ -167,7 +150,7 @@ function AnalysisSection({
             disabled={analyzing}
             className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
           >
-            {analyzing ? "Analisando..." : "Analisar com IA"}
+            Analisar com IA
           </button>
         </div>
         {analyzing && (
@@ -185,20 +168,14 @@ function AnalysisSection({
   }
 
   const analyzingAgentTypes = Object.keys(agentStatus).filter(
-    (t) => agentStatus[t] === "running" || agentStatus[t] === "pending"
+    (t) => agentStatus[t] === "running" || agentStatus[t] === "pending",
   );
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Análises dos Agentes</h2>
-        {!hasExisting && analyzing && (
-          <button disabled className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white opacity-50">
-            Analisando...
-          </button>
-        )}
       </div>
-
       {analyzing && analyzingAgentTypes.length > 0 && (
         <div className="space-y-4">
           {analyzingAgentTypes.map((type) => (
@@ -206,7 +183,6 @@ function AnalysisSection({
           ))}
         </div>
       )}
-
       {thought.analyses.map((a) => (
         <AgentPanel key={a.id} type={a.agent_type} content={a.content} />
       ))}
@@ -260,7 +236,7 @@ function ArgumentList({
 
       {showForm && (
         <form onSubmit={handleAdd} className="rounded-lg border border-zinc-200 bg-white p-4">
-          <div className="flex gap-2 mb-3">
+          <div className="mb-3 flex gap-2">
             <button
               type="button"
               onClick={() => setArgType("pro")}
@@ -304,9 +280,7 @@ function ArgumentList({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase text-emerald-700">A Favor</h4>
-          {pros.length === 0 && (
-            <p className="text-sm text-zinc-400">Nenhum ainda</p>
-          )}
+          {pros.length === 0 && <p className="text-sm text-zinc-400">Nenhum ainda</p>}
           {pros.map((a) => (
             <div key={a.id} className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
               <p className="text-sm text-zinc-700">{a.content}</p>
@@ -320,9 +294,7 @@ function ArgumentList({
         </div>
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase text-red-700">Contra</h4>
-          {cons.length === 0 && (
-            <p className="text-sm text-zinc-400">Nenhum ainda</p>
-          )}
+          {cons.length === 0 && <p className="text-sm text-zinc-400">Nenhum ainda</p>}
           {cons.map((a) => (
             <div key={a.id} className="rounded-lg border border-red-100 bg-red-50 p-3">
               <p className="text-sm text-zinc-700">{a.content}</p>
@@ -342,8 +314,11 @@ function ArgumentList({
 export default function ThoughtPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { toast } = useToast();
   const [thought, setThought] = useState<Thought | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [publishForums, setPublishForums] = useState<Forum[]>([]);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [selectedForumId, setSelectedForumId] = useState("");
@@ -355,6 +330,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
       setThought(data);
     } catch (err) {
       console.error(err);
+      setError("Pensamento não encontrado.");
     } finally {
       setLoading(false);
     }
@@ -365,12 +341,14 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
   }, [loadThought]);
 
   const handleDelete = async () => {
-    if (!confirm("Tem certeza?")) return;
+    setConfirmDelete(false);
     try {
       await api.deleteThought(id);
+      toast("Pensamento excluído.", "success");
       router.push("/");
     } catch (err) {
       console.error(err);
+      toast("Erro ao excluir pensamento.", "error");
     }
   };
 
@@ -382,6 +360,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
       setShowPublishModal(true);
     } catch (err) {
       console.error(err);
+      toast("Erro ao carregar fóruns.", "error");
     }
   };
 
@@ -392,9 +371,10 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
     try {
       await api.publishThought(id, selectedForumId);
       setShowPublishModal(false);
+      toast("Pensamento publicado no fórum!", "success");
     } catch (err) {
       console.error(err);
-      alert("Erro ao publicar.");
+      toast("Erro ao publicar.", "error");
     } finally {
       setPublishing(false);
     }
@@ -408,10 +388,11 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  if (!thought) {
+  if (error || !thought) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-20 text-center">
         <h2 className="text-xl font-semibold">Pensamento não encontrado</h2>
+        <p className="mt-1 text-sm text-zinc-500">{error}</p>
         <button onClick={() => router.push("/")} className="mt-4 text-violet-600 hover:underline">
           Voltar ao início
         </button>
@@ -421,6 +402,16 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
+      <ConfirmModal
+        open={confirmDelete}
+        title="Excluir pensamento?"
+        message="Esta ação não pode ser desfeita. Todos os dados e análises serão perdidos."
+        confirmLabel="Excluir"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{thought.title}</h1>
@@ -430,7 +421,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
         </div>
         <div className="flex gap-2">
           <button
-            onClick={handleDelete}
+            onClick={() => setConfirmDelete(true)}
             className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
           >
             Excluir
@@ -495,9 +486,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
 
         {thought.evidence && (
           <section className="rounded-xl border border-zinc-200 bg-white p-6">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Evidências
-            </h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Evidências</h2>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
               {thought.evidence}
             </p>
@@ -506,9 +495,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
 
         {thought.reasoning && (
           <section className="rounded-xl border border-zinc-200 bg-white p-6">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Raciocínio
-            </h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Raciocínio</h2>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
               {thought.reasoning}
             </p>
@@ -517,9 +504,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
 
         {thought.conclusion && (
           <section className="rounded-xl border border-zinc-200 bg-white p-6">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Conclusão
-            </h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Conclusão</h2>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
               {thought.conclusion}
             </p>
@@ -529,11 +514,7 @@ export default function ThoughtPage({ params }: { params: Promise<{ id: string }
         <AnalysisSection thought={thought} onRefresh={loadThought} />
 
         <section className="rounded-xl border border-zinc-200 bg-white p-6">
-          <ArgumentList
-            args={thought.arguments}
-            thoughtId={thought.id}
-            onAdded={loadThought}
-          />
+          <ArgumentList args={thought.arguments} thoughtId={thought.id} onAdded={loadThought} />
         </section>
       </div>
     </div>

@@ -111,8 +111,8 @@ def synthesize_forum(
                 "claim": forum.topic,
                 "evidence": reduced_input,
             })
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Synthesis failed: {str(e)}")
+        except Exception:
+            raise HTTPException(status_code=500, detail="Synthesis failed. Check API key and try again.")
     else:
         try:
             content = agent.analyze({
@@ -120,8 +120,8 @@ def synthesize_forum(
                 "claim": forum.topic,
                 "evidence": forum_input,
             })
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Synthesis failed: {str(e)}")
+        except Exception:
+            raise HTTPException(status_code=500, detail="Synthesis failed. Check API key and try again.")
 
     synthesis = Synthesis(
         id=uuid.uuid4(),

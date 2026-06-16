@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = "";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -110,8 +110,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error("Unauthorized");
   }
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    throw new Error(`API error ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

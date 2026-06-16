@@ -3,20 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, ThoughtListItem } from "@/lib/api";
-
-const agentIcons: Record<string, string> = {
-  socratic: "?" ,
-  devil: "",
-  bias: "",
-};
+import { useToast } from "@/components/Toast";
 
 export default function Dashboard() {
   const [thoughts, setThoughts] = useState<ThoughtListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const { toast } = useToast();
 
   useEffect(() => {
-    api.listThoughts().then(setThoughts).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    api
+      .listThoughts()
+      .then(setThoughts)
+      .catch((err) => {
+        console.error(err);
+        setError("Não foi possível carregar seus pensamentos.");
+        toast("Erro ao carregar pensamentos", "error");
+      })
+      .finally(() => setLoading(false));
+  }, [toast]);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
@@ -39,10 +44,14 @@ export default function Dashboard() {
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-200 border-t-violet-600" />
         </div>
+      ) : error ? (
+        <div className="rounded-xl border-2 border-red-200 bg-red-50 py-16 text-center">
+          <h2 className="text-lg font-semibold text-red-800">Erro ao carregar</h2>
+          <p className="mt-1 text-sm text-red-600">{error}</p>
+        </div>
       ) : thoughts.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-zinc-200 py-20 text-center">
-          <div className="text-4xl"></div>
-          <h2 className="mt-4 text-lg font-semibold">Nenhum pensamento ainda</h2>
+          <h2 className="text-lg font-semibold">Nenhum pensamento ainda</h2>
           <p className="mt-1 text-sm text-zinc-500">
             Crie seu primeiro pensamento para começar a explorar suas ideias com a ajuda da IA.
           </p>

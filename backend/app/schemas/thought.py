@@ -1,15 +1,15 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ThoughtCreate(BaseModel):
-    title: str
-    claim: str
-    evidence: str = ""
-    reasoning: str = ""
-    conclusion: str = ""
+    title: str = Field(min_length=1, max_length=255)
+    claim: str = Field(min_length=1, max_length=10000)
+    evidence: str = Field(default="", max_length=50000)
+    reasoning: str = Field(default="", max_length=50000)
+    conclusion: str = Field(default="", max_length=10000)
 
 
 class ThoughtUpdate(BaseModel):
@@ -21,9 +21,9 @@ class ThoughtUpdate(BaseModel):
 
 
 class ArgumentCreate(BaseModel):
-    type: str
-    content: str
-    score: float = 0.0
+    type: str = Field(pattern="^(pro|con)$")
+    content: str = Field(min_length=1, max_length=10000)
+    score: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class ArgumentResponse(BaseModel):
